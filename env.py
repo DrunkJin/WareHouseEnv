@@ -87,8 +87,8 @@ class WareHouseEnv(gym.Env):
                     self.lift_positions[i][0] = max(0, self.lift_positions[i][0] - 1)
                 
                 # excavator가 carry중인데, 덤프트럭이 존재하면 penalty값 감소
-                if self.lift_positions[i] in self.robot_positions and self.lift_carry[i] == 1:
-                    lift_penalty -= 2
+                # if self.lift_positions[i] in self.robot_positions and self.lift_carry[i] == 1:
+                #     lift_penalty -= 2
 
         # Move each dumptruck based on its action
         for i in range(self.num_robot):
@@ -104,10 +104,10 @@ class WareHouseEnv(gym.Env):
                 self.robot_positions[i][0] = max(0, self.robot_positions[i][0] - 1)
 
             # 불필요한 움직임 패널티 주기(제자리에 머무는 경우와 사토장으로 이동하지 않았을 때, 패널티 줌)
-            if self.robot_load[i] >= 5 and self.robot_positions[i] != [0, 0]:
-                robot_penalty += 3
-            elif self.cargo_map[self.robot_positions[i][1]][self.robot_positions[i][0]] == 0:
-                robot_penalty -= 1  # 로봇이 이동한 위치에 짐이 없는 경우 패널티 감소
+            # if self.robot_load[i] >= 5 and self.robot_positions[i] != [0, 0]:
+            #     robot_penalty += 3
+            # elif self.cargo_map[self.robot_positions[i][1]][self.robot_positions[i][0]] == 0:
+            #     robot_penalty -= 1  # 로봇이 이동한 위치에 짐이 없는 경우 패널티 감소
            
 
         # 로직: 굴삭 및 로딩
@@ -117,17 +117,21 @@ class WareHouseEnv(gym.Env):
             if self.lift_carry[i] == 1:
                 if tuple(self.lift_positions[i]) in robot_positions_set:  # O(1)의 시간 복잡도로 위치 확인
                     j = self.robot_positions.index(self.lift_positions[i])  # 일치하는 덤프트럭의 인덱스를 찾습니다.
-                    if self.robot_load[j] < 6:
+                    if self.robot_load[j] < 5:
                         self.robot_load[j] += 1
                         self.lift_carry[i] = 0
                         lift_bonus += 5  # 굴삭 및 로딩 보상 증가
             if self.lift_carry[i] == 0 and self.cargo_map[self.lift_positions[i][1]][self.lift_positions[i][0]] > 0:
                 # 수정된 부분 시작
-                if self.lift_positions[i] in self.robot_positions and self.lift_carry[i] == 1:
-                    lift_penalty += 2
-                else:
-                    self.lift_carry[i] = 1
-                    self.cargo_map[self.lift_positions[i][1]][self.lift_positions[i][0]] -= 1
+                self.lift_carry[i] = 1
+                self.cargo_map[self.lift_positions[i][1]][self.lift_positions[i][0]] -= 1
+
+
+                # if self.lift_positions[i] in self.robot_positions and self.lift_carry[i] == 1:
+                #     lift_penalty += 2
+                # else:
+                #     self.lift_carry[i] = 1
+                #     self.cargo_map[self.lift_positions[i][1]][self.lift_positions[i][0]] -= 1
                 # 수정된 부분 끝
 
         for j in range(self.num_robot):
@@ -137,16 +141,17 @@ class WareHouseEnv(gym.Env):
 
 
         # 패널티 및 보상 적용
-        self.reward += reward - lift_penalty - robot_penalty + lift_bonus
+        # self.reward += reward - lift_penalty - robot_penalty + lift_bonus
      
+        self.reward += reward
         if np.sum(self.cargo_map) == 0:
             self.reward += self.max_steps - self.current_step  # 스텝 수에 따른 보상 감소
             done = True
             
             ## 출력 2가지 스타일
-            if self.episode % 100 == 0:
-                print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
-            # print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
+            # if self.episode % 100 == 0:
+                # print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
+            print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
             self.episode += 1
         else:
             done = False
@@ -154,13 +159,13 @@ class WareHouseEnv(gym.Env):
         #print("np.sum(self.cargo_map)::",np.sum(self.cargo_map))
         self.current_step += 1
         if self.current_step >= self.max_steps:
+            print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
             done = True
             self.episode += 1
 
 
         if self.graphic == True and self.render_mode == "human":
             self.render_frame()
-
         return self._next_observation(), self.reward, done, {}
 
     def render_frame(self):
@@ -223,15 +228,25 @@ class WareHouseEnv(gym.Env):
             color = (0, 0, 0)
             
             robot_y_offset = (self.cell_size / 3) * 2
-            pygame.draw.rect(canvas, color, pygame.Rect(cols*self.cell_size + self.cell_size/2 - lift_pix_size/2, rows*self.cell_size + robot_y_offset, lift_pix_size, lift_pix_size))
-            
+            robot_x_offset = (i % 3) * (self.cell_size / 3)
             load_text = font.render(str(self.robot_load[i]), True, (255, 255, 255))
-            canvas.blit(load_text, (cols*self.cell_size + self.cell_size/2 - load_text.get_width()/2, rows*self.cell_size + robot_y_offset + lift_pix_size/2 - load_text.get_height()/2))
+            # 글자 위치도 덤프트럭의 x 오프셋을 고려하여 조정합니다.
+            text_x = cols*self.cell_size + robot_x_offset + lift_pix_size/2 - load_text.get_width()/2
+            text_y = rows*self.cell_size + robot_y_offset + lift_pix_size/2 - load_text.get_height()/2
+            # 덤프트럭을 그립니다.
+            robot_rect = pygame.Rect(
+                cols*self.cell_size + robot_x_offset,
+                rows*self.cell_size + robot_y_offset,
+                lift_pix_size,
+                lift_pix_size
+            )
+            pygame.draw.rect(canvas, color, robot_rect)
+            
+            canvas.blit(load_text, (text_x, text_y))
 
         for x in range(self.map_size + 1):
             pygame.draw.line(canvas, (0, 0, 0), (0, self.cell_size*x), (self.win_size, self.cell_size*x), width=line_width)
             pygame.draw.line(canvas, (0, 0, 0), (self.cell_size*x, 0), (self.cell_size*x, self.win_size), width=line_width)
-
         
         if self.render_mode == "human":
             self.window.blit(canvas, canvas.get_rect())
