@@ -144,9 +144,9 @@ class WareHouseEnv(gym.Env):
             done = True
             
             ## 출력 2가지 스타일
-            if self.episode % 100 == 0:
-                print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
-            # print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
+            # if self.episode % 100 == 0:
+                # print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
+            print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
             self.episode += 1
         else:
             done = False
@@ -154,13 +154,13 @@ class WareHouseEnv(gym.Env):
         #print("np.sum(self.cargo_map)::",np.sum(self.cargo_map))
         self.current_step += 1
         if self.current_step >= self.max_steps:
+            print(f"Episode {self.episode}. Steps taken: {self.current_step}. Remaining soil: {np.sum(self.cargo_map)}. Total reward: {self.reward}")
             done = True
             self.episode += 1
 
 
         if self.graphic == True and self.render_mode == "human":
             self.render_frame()
-
         return self._next_observation(), self.reward, done, {}
 
     def render_frame(self):
@@ -223,15 +223,25 @@ class WareHouseEnv(gym.Env):
             color = (0, 0, 0)
             
             robot_y_offset = (self.cell_size / 3) * 2
-            pygame.draw.rect(canvas, color, pygame.Rect(cols*self.cell_size + self.cell_size/2 - lift_pix_size/2, rows*self.cell_size + robot_y_offset, lift_pix_size, lift_pix_size))
-            
+            robot_x_offset = (i % 3) * (self.cell_size / 3)
             load_text = font.render(str(self.robot_load[i]), True, (255, 255, 255))
-            canvas.blit(load_text, (cols*self.cell_size + self.cell_size/2 - load_text.get_width()/2, rows*self.cell_size + robot_y_offset + lift_pix_size/2 - load_text.get_height()/2))
+            # 글자 위치도 덤프트럭의 x 오프셋을 고려하여 조정합니다.
+            text_x = cols*self.cell_size + robot_x_offset + lift_pix_size/2 - load_text.get_width()/2
+            text_y = rows*self.cell_size + robot_y_offset + lift_pix_size/2 - load_text.get_height()/2
+            # 덤프트럭을 그립니다.
+            robot_rect = pygame.Rect(
+                cols*self.cell_size + robot_x_offset,
+                rows*self.cell_size + robot_y_offset,
+                lift_pix_size,
+                lift_pix_size
+            )
+            pygame.draw.rect(canvas, color, robot_rect)
+            
+            canvas.blit(load_text, (text_x, text_y))
 
         for x in range(self.map_size + 1):
             pygame.draw.line(canvas, (0, 0, 0), (0, self.cell_size*x), (self.win_size, self.cell_size*x), width=line_width)
             pygame.draw.line(canvas, (0, 0, 0), (self.cell_size*x, 0), (self.cell_size*x, self.win_size), width=line_width)
-
         
         if self.render_mode == "human":
             self.window.blit(canvas, canvas.get_rect())
